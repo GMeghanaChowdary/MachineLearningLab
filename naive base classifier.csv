@@ -1,0 +1,76 @@
+import csv
+import math
+import random
+import statistics
+
+def cal_probability(x, mean, stdev):
+    if stdev == 0:
+        return 1.0 if x == mean else 0.0
+    exponent = math.exp(-(math.pow(x - mean, 2) / (2 * math.pow(stdev, 2))))
+    return (1 / (math.sqrt(2 * math.pi) * stdev)) * exponent
+
+# Read dataset
+dataset = []
+with open('lab5.csv') as csvfile:
+    lines = csv.reader(csvfile)
+    for row in lines:
+        dataset.append([float(attr) for attr in row])
+
+dataset_size = len(dataset)
+print("Size of dataset is:", dataset_size)
+
+# Train-test split (70-30)
+train_size = int(0.7 * dataset_size)
+print("Training set size:", train_size)
+
+X_train = []
+X_test = dataset.copy()
+
+training_indexes = random.sample(range(dataset_size), train_size)
+for i in training_indexes:
+    X_train.append(dataset[i])
+    X_test.remove(dataset[i])
+
+# Organize training data by class
+classes = {}
+for sample in X_train:
+    label = int(sample[-1])
+    if label not in classes:
+        classes[label] = []
+    classes[label].append(sample)
+
+# Print sample count per class (optional)
+for label, samples in classes.items():
+    print(f"Class {label}: {len(samples)} samples")
+
+# Calculate mean and stdev per feature per class
+summaries = {}
+for class_value, training_data in classes.items():
+    summary = [(statistics.mean(attribute), statistics.stdev(attribute)) for attribute in zip(*training_data)]
+    del summary[-1]  # Remove class label stats
+    summaries[class_value] = summary
+
+# Predict test data
+X_prediction = []
+for instance in X_test:
+    probabilities = {}
+    for class_value, class_summary in summaries.items():
+        probabilities[class_value] = 1
+        for index, attr in enumerate(class_summary):
+            probabilities[class_value] *= cal_probability(instance[index], attr[0], attr[1])
+    
+    best_label, best_prob = None, -1
+    for class_value, probability in probabilities.items():
+        if best_label is None or probability > best_prob:
+            best_label = class_value
+            best_prob = probability
+    X_prediction.append(best_label)
+
+# Calculate accuracy
+correct = 0
+for index in range(len(X_test)):
+    if X_test[index][-1] == X_prediction[index]:
+        correct += 1
+
+accuracy = correct / float(len(X_test)) * 100
+print(f"Accuracy: {accuracy:.2f}%")
